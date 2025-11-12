@@ -3,45 +3,65 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { authService } from "@/services/auth.service"
 
-export default function Home() {
+export default function Register() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [displayName, setDisplayName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem("authToken")
-    if (token) {
-      router.push("/chat")
+    const user = localStorage.getItem("user")
+    const userObj = user ? JSON.parse(user) : null
+    if (userObj?.role !== "admin") {
+      router.push("/")
+      return
     }
+    setIsAdmin(true)
   }, [router])
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    setIsLoading(true)
 
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters")
+      return
+    }
+
+    setIsLoading(true)
     try {
-      const response = await authService.login({ email, password })
-      // localStorage.setItem("authToken", response.token)
-      localStorage.setItem("user", JSON.stringify(response.user))
-      router.push("/chat")
+      await authService.register({
+        email,
+        password,
+        displayName: displayName || undefined,
+      })
+      router.push("/settings")
     } catch (err: any) {
-      setError(err.response?.data?.error || "Invalid credentials. Contact your administrator for access.")
+      setError(err.response?.data?.error || "Registration failed")
     } finally {
       setIsLoading(false)
     }
   }
 
+  if (!isAdmin) return null
+
   return (
     <div className="grid-pattern relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background gradient elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/20 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-secondary/20 rounded-full blur-3xl"></div>
@@ -54,7 +74,7 @@ export default function Home() {
               <span className="text-foreground">Vector</span>
               <span className="text-primary">Mind</span>
             </h1>
-            <p className="text-muted-foreground text-sm">Internal Knowledge AI Assistant</p>
+            <p className="text-muted-foreground text-sm">Register New User</p>
           </div>
 
           {error && (
@@ -63,18 +83,27 @@ export default function Home() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">Email</label>
               <Input
                 type="email"
-                placeholder="you@example.com"
+                placeholder="newuser@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-input border-border text-foreground placeholder:text-muted-foreground"
                 required
               />
-              <p className="text-xs text-muted-foreground mt-1">Admin only - ask your admin for credentials</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">Display Name (Optional)</label>
+              <Input
+                type="text"
+                placeholder="John Doe"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">Password</label>
@@ -87,20 +116,33 @@ export default function Home() {
                 required
               />
             </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">Confirm Password</label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                required
+              />
+            </div>
 
             <Button
               type="submit"
-              disabled={isLoading || !email || !password}
+              disabled={isLoading || !email || !password || !confirmPassword}
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Creating account..." : "Register User"}
             </Button>
           </form>
 
           <div className="mt-6 pt-6 border-t border-border/50">
-            <p className="text-center text-sm text-muted-foreground">
-              Only admins can register new users. Contact your administrator.
-            </p>
+            <Link href="/settings">
+              <Button variant="outline" className="w-full bg-transparent">
+                Back to Settings
+              </Button>
+            </Link>
           </div>
         </Card>
       </div>
