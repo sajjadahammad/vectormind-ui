@@ -10,33 +10,9 @@ import FileList from "@/components/file-list"
 import UserManagement from "@/components/user-management"
 import { ArrowLeft, LogOut, User } from "lucide-react"
 
-interface File {
-  id: string
-  name: string
-  size: number
-  uploadedAt: Date
-  type: string
-}
-
 export default function SettingsPage() {
   const router = useRouter()
   const [user, setUser] = useState<{ email: string; role: string } | null>(null)
-  const [files, setFiles] = useState<File[]>([
-    {
-      id: "1",
-      name: "Company_Handbook_2024.pdf",
-      size: 2458624,
-      uploadedAt: new Date("2024-10-15"),
-      type: "pdf",
-    },
-    {
-      id: "2",
-      name: "API_Documentation.docx",
-      size: 1024000,
-      uploadedAt: new Date("2024-10-14"),
-      type: "docx",
-    },
-  ])
   const [showProfile, setShowProfile] = useState(false)
 
   useEffect(() => {
@@ -55,23 +31,6 @@ export default function SettingsPage() {
   const handleLogout = () => {
     localStorage.removeItem("user")
     router.push("/")
-  }
-
-  const handleFileUpload = (newFiles: FileList) => {
-    Array.from(newFiles).forEach((file) => {
-      const newFile: File = {
-        id: Date.now().toString(),
-        name: file.name,
-        size: file.size,
-        uploadedAt: new Date(),
-        type: file.type,
-      }
-      setFiles((prev) => [newFile, ...prev])
-    })
-  }
-
-  const handleDeleteFile = (id: string) => {
-    setFiles((prev) => prev.filter((f) => f.id !== id))
   }
 
   if (!user) return null
@@ -133,7 +92,7 @@ export default function SettingsPage() {
           <div className="md:col-span-1">
             <Card className="bg-card/50 border border-border/50 p-6">
               <h2 className="text-lg font-semibold text-foreground mb-4">Upload Files</h2>
-              <FileUploadArea onFileUpload={handleFileUpload} />
+              <FileUploadArea />
             </Card>
           </div>
 
@@ -142,9 +101,8 @@ export default function SettingsPage() {
             <Card className="bg-card/50 border border-border/50 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Knowledge Base Files</h2>
-                <span className="text-sm text-muted-foreground">{files.length} files</span>
               </div>
-              <FileList files={files} onDeleteFile={handleDeleteFile} />
+              <FileList />
             </Card>
           </div>
         </div>

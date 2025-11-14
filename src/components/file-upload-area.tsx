@@ -2,16 +2,43 @@
 
 import type React from "react"
 
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Upload, File } from "lucide-react"
+import { Upload, File, Loader2, CheckCircle, XCircle } from "lucide-react"
+import { fileService } from "@/services/file.service"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 interface FileUploadAreaProps {
-  onFileUpload: (files: FileList) => void
+  onFileUpload?: (files: FileList) => void
 }
 
 export default function FileUploadArea({ onFileUpload }: FileUploadAreaProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
+  const [uploadProgress, setUploadProgress] = useState<number>(0)
+  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle")
+  const [uploadedFileName, setUploadedFileName] = useState<string>("")
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => fileService.uploadFile(file, setUploadProgress),
+    onSuccess: () => {
+      setUploadStatus("success")
+      queryClient.invalidateQueries({ queryKey: ["files"] })
+      setTimeout(() => {
+        setUploadStatus("idle")
+        setUploadProgress(0)
+        setUploadedFileName("")
+      }, 3000)
+    },
+    onError: () => {
+      setUploadStatus("error")
+      setTimeout(() => {
+        setUploadStatus("idle")
+        setUploadProgress(0)
+        setUploadedFileName("")
+      }, 3000)
+    },
+  })
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -21,12 +48,26 @@ export default function FileUploadArea({ onFileUpload }: FileUploadAreaProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    onFileUpload(e.dataTransfer.files)
+    handleFiles(e.dataTransfer.files)
   }
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      onFileUpload(e.target.files)
+      handleFiles(e.target.files)
+    }
+  }
+
+  const handleFiles = async (files: FileList) => {
+    if (onFileUpload) {
+      onFileUpload(files)
+    }
+
+    // Upload files to API
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      setUploadedFileName(file.name)
+      setUploadStatus("uploading")
+      await uploadMutation.mutateAsync(file)
     }
   }
 
@@ -44,23 +85,66 @@ export default function FileUploadArea({ onFileUpload }: FileUploadAreaProps) {
       <div
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className="border-2 border-dashed border-border/50 rounded-lg p-6 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+        onClick={() => uploadStatus === "idle" && inputRef.current?.click()}
+        className={`border-2 border-dashed border-border/50 rounded-lg p-6 transition-colors ${
+          uploadStatus === "idle" ? "cursor-pointer hover:border-primary/50 hover:bg-primary/5" : ""
+        }`}
       >
         <div className="flex flex-col items-center justify-center text-center">
-          <Upload className="w-8 h-8 text-primary mb-2" />
-          <p className="text-sm font-medium text-foreground mb-1">Drag & drop files here</p>
-          <p className="text-xs text-muted-foreground">or click to select</p>
-          <p className="text-xs text-muted-foreground mt-2">PDF, DOC, DOCX, TXT, MD, JSON</p>
+          {uploadStatus === "idle" && (
+            <>
+              <Upload className="w-8 h-8 text-primary mb-2" />
+              <p className="text-sm font-medium text-foreground mb-1">Drag & drop files here</p>
+              <p className="text-xs text-muted-foreground">or click to select</p>
+              <p className="text-xs text-muted-foreground mt-2">PDF, DOC, DOCX, TXT, MD, JSON</p>
+            </>
+          )}
+          {uploadStatus === "uploading" && (
+            <>
+              <Loader2 className="w-8 h-8 text-primary mb-2 animate-spin" />
+              <p className="text-sm font-medium text-foreground mb-1">Uploading {uploadedFileName}...</p>
+              <div className="w-full bg-border/50 rounded-full h-2 mt-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{uploadProgress}%</p>
+            </>
+          )}
+          {uploadStatus === "success" && (
+            <>
+              <CheckCircle className="w-8 h-8 text-green-500 mb-2" />
+              <p className="text-sm font-medium text-foreground mb-1">Upload successful!</p>
+              <p className="text-xs text-muted-foreground">{uploadedFileName}</p>
+            </>
+          )}
+          {uploadStatus === "error" && (
+            <>
+              <XCircle className="w-8 h-8 text-destructive mb-2" />
+              <p className="text-sm font-medium text-foreground mb-1">Upload failed</p>
+              <p className="text-xs text-muted-foreground">Please try again</p>
+            </>
+          )}
         </div>
       </div>
 
       <Button
         onClick={() => inputRef.current?.click()}
-        className="w-full mt-4 bg-primary text-primary-foreground hover:bg-primary/90"
+        disabled={uploadStatus !== "idle"}
+        className="w-full mt-4 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
-        <File className="w-4 h-4 mr-2" />
-        Choose Files
+        {uploadStatus === "uploading" ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Uploading...
+          </>
+        ) : (
+          <>
+            <File className="w-4 h-4 mr-2" />
+            Choose Files
+          </>
+        )}
       </Button>
     </div>
   )

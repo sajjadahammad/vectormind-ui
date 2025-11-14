@@ -1,64 +1,95 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Trash2, Shield, Edit2, Check, X } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Shield, Check, X, UserPlus, Loader2 } from "lucide-react"
+import { authService } from "@/services/auth.service"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 interface User {
+  uid: string
   email: string
-  role: "user" | "editor" | "admin"
+  displayName: string
+  role: string
+  canUpload: boolean
+  createdAt: string
 }
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([])
-  const [editingEmail, setEditingEmail] = useState<string | null>(null)
-  const [newRole, setNewRole] = useState<"user" | "editor" | "admin">("user")
+  const queryClient = useQueryClient()
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [newUserEmail, setNewUserEmail] = useState("")
+  const [newUserPassword, setNewUserPassword] = useState("")
+  const [newUserName, setNewUserName] = useState("")
 
-  useEffect(() => {
-    // Load users from localStorage
-    const allUsers = JSON.parse(localStorage.getItem("allUsers") || "[]")
-    setUsers(allUsers)
-  }, [])
+  // Fetch users from API
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => authService.listUsers(),
+  })
 
-  const handleRoleChange = (email: string, role: "user" | "editor" | "admin") => {
-    setEditingEmail(email)
-    setNewRole(role)
+  // Grant permission mutation
+  const grantPermissionMutation = useMutation({
+    mutationFn: (userId: string) => authService.grantPermission(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+  })
+
+  // Revoke permission mutation
+  const revokePermissionMutation = useMutation({
+    mutationFn: (userId: string) => authService.revokePermission(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+    },
+  })
+
+  // Add user mutation
+  const addUserMutation = useMutation({
+    mutationFn: (data: { email: string; password: string; displayName?: string }) =>
+      authService.register(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      setShowAddUser(false)
+      setNewUserEmail("")
+      setNewUserPassword("")
+      setNewUserName("")
+    },
+  })
+
+  const handleTogglePermission = (user: User) => {
+    if (user.canUpload) {
+      revokePermissionMutation.mutate(user.uid)
+    } else {
+      grantPermissionMutation.mutate(user.uid)
+    }
   }
 
-  const handleSaveRole = (email: string) => {
-    const updatedUsers = users.map((u) => (u.email === email ? { ...u, role: newRole } : u))
-    setUsers(updatedUsers)
-    localStorage.setItem("allUsers", JSON.stringify(updatedUsers))
-    setEditingEmail(null)
-  }
-
-  const handleDeleteUser = (email: string) => {
-    const updatedUsers = users.filter((u) => u.email !== email)
-    setUsers(updatedUsers)
-    localStorage.setItem("allUsers", JSON.stringify(updatedUsers))
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newUserEmail || !newUserPassword) return
+    
+    addUserMutation.mutate({
+      email: newUserEmail,
+      password: newUserPassword,
+      displayName: newUserName || undefined,
+    })
   }
 
   const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "bg-red-500/20 text-red-400 border-red-500/30"
-      case "editor":
-        return "bg-primary/20 text-primary border-primary/30"
-      default:
-        return "bg-muted text-muted-foreground border-border"
+    if (role === "admin") {
+      return "bg-red-500/20 text-red-400 border-red-500/30"
     }
+    return "bg-primary/20 text-primary border-primary/30"
   }
 
-  const getRoleDescription = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "Full access including user management"
-      case "editor":
-        return "Can upload and manage knowledge base files"
-      default:
-        return "Read-only access to chat"
+  const getRoleDescription = (user: User) => {
+    if (user.role === "admin") {
+      return "Full access including user management"
     }
+    return user.canUpload ? "Can upload and manage knowledge base files" : "Read-only access to chat"
   }
 
   return (
@@ -71,78 +102,144 @@ export default function UserManagement() {
           </h2>
           <p className="text-sm text-muted-foreground mt-1">Control who can edit the knowledge base</p>
         </div>
-        <span className="text-sm font-medium text-muted-foreground bg-muted/30 px-3 py-1 rounded-full">
-          {users.length} users
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground bg-muted/30 px-3 py-1 rounded-full">
+            {users.length} users
+          </span>
+          <Button
+            onClick={() => setShowAddUser(!showAddUser)}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            size="sm"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add User
+          </Button>
+        </div>
       </div>
 
-      {users.length === 0 ? (
+      {/* Add User Form */}
+      {showAddUser && (
+        <form onSubmit={handleAddUser} className="mb-6 p-4 bg-background/50 border border-border/50 rounded-lg">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Add New User</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Email *</label>
+              <Input
+                type="email"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+                placeholder="user@example.com"
+                required
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Password *</label>
+              <Input
+                type="password"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Display Name (Optional)</label>
+              <Input
+                type="text"
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                placeholder="John Doe"
+                className="bg-input border-border text-foreground"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="submit"
+                disabled={addUserMutation.isPending}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                {addUserMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add User"
+                )}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setShowAddUser(false)}
+                variant="ghost"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+            </div>
+            {addUserMutation.isError && (
+              <p className="text-xs text-destructive">
+                Failed to add user. Please try again.
+              </p>
+            )}
+          </div>
+        </form>
+      )}
+
+      {isLoading ? (
         <div className="text-center py-8">
-          <p className="text-muted-foreground">No users yet. Users will appear here after registration.</p>
+          <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground mt-2">Loading users...</p>
+        </div>
+      ) : users.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No users yet. Click "Add User" to create one.</p>
         </div>
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {users.map((user) => (
             <div
-              key={user.email}
+              key={user.uid}
               className="flex items-center justify-between p-4 bg-background/50 border border-border/30 rounded-lg hover:border-border/50 transition-colors"
             >
               <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{user.email}</p>
-                <p className="text-xs text-muted-foreground mt-1">{getRoleDescription(user.role)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-foreground">{user.email}</p>
+                  {user.displayName && (
+                    <span className="text-xs text-muted-foreground">({user.displayName})</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{getRoleDescription(user)}</p>
               </div>
 
               <div className="flex items-center gap-3">
-                {editingEmail === user.email ? (
-                  <>
-                    <select
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value as "user" | "editor" | "admin")}
-                      className="text-xs px-2 py-1 bg-background border border-border/50 rounded text-foreground"
-                    >
-                      <option value="user">User</option>
-                      <option value="editor">Editor</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                    <Button
-                      onClick={() => handleSaveRole(user.email)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-primary hover:bg-primary/10"
-                    >
-                      <Check className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      onClick={() => setEditingEmail(null)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span className={`text-xs font-semibold px-2 py-1 rounded border ${getRoleBadgeColor(user.role)}`}>
-                      {user.role.toUpperCase()}
-                    </span>
-                    <Button
-                      onClick={() => handleRoleChange(user.email, user.role)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-muted-foreground hover:text-primary"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      onClick={() => handleDeleteUser(user.email)}
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </>
+                <span className={`text-xs font-semibold px-2 py-1 rounded border ${getRoleBadgeColor(user.role)}`}>
+                  {user.role.toUpperCase()}
+                </span>
+                {user.role !== "admin" && (
+                  <Button
+                    onClick={() => handleTogglePermission(user)}
+                    disabled={grantPermissionMutation.isPending || revokePermissionMutation.isPending}
+                    size="sm"
+                    variant="ghost"
+                    className={user.canUpload ? "text-destructive hover:bg-destructive/10" : "text-primary hover:bg-primary/10"}
+                  >
+                    {grantPermissionMutation.isPending || revokePermissionMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : user.canUpload ? (
+                      <>
+                        <X className="w-4 h-4 mr-1" />
+                        Revoke
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-1" />
+                        Grant
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
             </div>
@@ -151,16 +248,16 @@ export default function UserManagement() {
       )}
 
       <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-lg text-sm text-muted-foreground">
-        <p className="font-semibold text-foreground mb-2">Role Permissions:</p>
+        <p className="font-semibold text-foreground mb-2">Permissions:</p>
         <ul className="space-y-1 text-xs">
           <li>
-            • <span className="text-foreground font-medium">User:</span> View chat and interact with knowledge base
-          </li>
-          <li>
-            • <span className="text-foreground font-medium">Editor:</span> Upload and manage knowledge base files
-          </li>
-          <li>
             • <span className="text-foreground font-medium">Admin:</span> Full access including user management
+          </li>
+          <li>
+            • <span className="text-foreground font-medium">Upload Permission:</span> Can upload and manage knowledge base files
+          </li>
+          <li>
+            • <span className="text-foreground font-medium">User:</span> Read-only access to chat
           </li>
         </ul>
       </div>
