@@ -1,7 +1,7 @@
 import apiClient from "@/lib/api-client"
 
 interface UploadedFile {
-  documentId: string
+  id: string
   filename: string
   pages: number
   chunks: number

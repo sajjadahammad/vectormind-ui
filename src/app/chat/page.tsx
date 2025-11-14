@@ -44,7 +44,7 @@ export default function ChatPage() {
           <div className="flex items-center gap-4 relative">
             {user.role === "admin" && (
               <Link href="/settings">
-                <Button variant="ghost" size="sm" className="text-foreground hover:text-primary">
+                <Button variant="ghost" size="sm" className="text-foreground hover:text-white">
                   <Settings className="w-4 h-4 mr-2" />
                   Settings
                 </Button>
@@ -56,7 +56,7 @@ export default function ChatPage() {
                 onClick={() => setShowProfile(!showProfile)}
                 variant="ghost"
                 size="sm"
-                className="text-foreground hover:text-primary"
+                className="text-foreground hover:text-white"
               >
                 <User className="w-4 h-4" />
               </Button>
@@ -68,7 +68,7 @@ export default function ChatPage() {
                   </div>
                   <Button
                     onClick={handleLogout}
-                    className="w-full justify-start text-destructive hover:bg-destructive/10"
+                    className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-white"
                     variant="ghost"
                     size="sm"
                   >

@@ -49,17 +49,12 @@ export const authService = {
   },
 
   async register(payload: FirebaseRegisterPayload) {
-    const { user: firebaseUser, token } = await firebaseAuth.register(payload.email, payload.password)
 
     const response = await apiClient.post<{ user: User }>("/auth/register", {
-      token,
-      firebaseUid: firebaseUser.uid,
+      password: payload.password,
       email: payload.email,
       displayName: payload.displayName,
     })
-
-    // Store the token in localStorage
-    localStorage.setItem("authToken", token)
 
     return response.data.user
   },

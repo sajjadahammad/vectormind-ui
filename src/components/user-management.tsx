@@ -1,12 +1,28 @@
 "use client"
 
 import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Shield, Check, X, UserPlus, Loader2 } from "lucide-react"
 import { authService } from "@/services/auth.service"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+
+// Zod schema for user creation form
+const createUserSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character"),
+  displayName: z.string().optional(),
+})
 
 interface User {
   uid: string
@@ -17,12 +33,27 @@ interface User {
   createdAt: string
 }
 
+type CreateUserFormData = z.infer<typeof createUserSchema>
+
 export default function UserManagement() {
   const queryClient = useQueryClient()
   const [showAddUser, setShowAddUser] = useState(false)
-  const [newUserEmail, setNewUserEmail] = useState("")
-  const [newUserPassword, setNewUserPassword] = useState("")
-  const [newUserName, setNewUserName] = useState("")
+
+  // React Hook Form setup
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CreateUserFormData>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      displayName: "",
+    },
+    mode:"onTouched"
+  })
 
   // Fetch users from API
   const { data: users = [], isLoading } = useQuery({
@@ -48,14 +79,24 @@ export default function UserManagement() {
 
   // Add user mutation
   const addUserMutation = useMutation({
-    mutationFn: (data: { email: string; password: string; displayName?: string }) =>
-      authService.register(data),
-    onSuccess: () => {
+    mutationFn: (data: CreateUserFormData) =>
+      authService.register({
+        email: data.email,
+        password: data.password,
+        displayName: data.displayName || undefined,
+      }),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
       setShowAddUser(false)
-      setNewUserEmail("")
-      setNewUserPassword("")
-      setNewUserName("")
+      reset()
+      toast.success("User added successfully", {
+        description: `${variables.email} has been added to the system`,
+      })
+    },
+    onError: () => {
+      toast.error("Failed to add user", {
+        description: "Please try again or contact support",
+      })
     },
   })
 
@@ -67,15 +108,8 @@ export default function UserManagement() {
     }
   }
 
-  const handleAddUser = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newUserEmail || !newUserPassword) return
-    
-    addUserMutation.mutate({
-      email: newUserEmail,
-      password: newUserPassword,
-      displayName: newUserName || undefined,
-    })
+  const onSubmit = (data: CreateUserFormData) => {
+    addUserMutation.mutate(data)
   }
 
   const getRoleBadgeColor = (role: string) => {
@@ -119,41 +153,44 @@ export default function UserManagement() {
 
       {/* Add User Form */}
       {showAddUser && (
-        <form onSubmit={handleAddUser} className="mb-6 p-4 bg-background/50 border border-border/50 rounded-lg">
+        <form onSubmit={handleSubmit(onSubmit)} className="mb-6 p-4 bg-background/50 border border-border/50 rounded-lg">
           <h3 className="text-sm font-semibold text-foreground mb-4">Add New User</h3>
           <div className="space-y-3">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Email *</label>
               <Input
                 type="email"
-                value={newUserEmail}
-                onChange={(e) => setNewUserEmail(e.target.value)}
+                {...register("email")}
                 placeholder="user@example.com"
-                required
                 className="bg-input border-border text-foreground"
               />
+              {errors.email && (
+                <p className="text-xs text-destructive mt-1">{errors.email.message}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Password *</label>
               <Input
                 type="password"
-                value={newUserPassword}
-                onChange={(e) => setNewUserPassword(e.target.value)}
+                {...register("password")}
                 placeholder="••••••••"
-                required
-                minLength={6}
                 className="bg-input border-border text-foreground"
               />
+              {errors.password && (
+                <p className="text-xs text-destructive mt-1">{errors.password.message}</p>
+              )}
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Display Name (Optional)</label>
               <Input
                 type="text"
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
+                {...register("displayName")}
                 placeholder="John Doe"
                 className="bg-input border-border text-foreground"
               />
+              {errors.displayName && (
+                <p className="text-xs text-destructive mt-1">{errors.displayName.message}</p>
+              )}
             </div>
             <div className="flex gap-2 pt-2">
               <Button
@@ -172,7 +209,10 @@ export default function UserManagement() {
               </Button>
               <Button
                 type="button"
-                onClick={() => setShowAddUser(false)}
+                onClick={() => {
+                  setShowAddUser(false)
+                  reset()
+                }}
                 variant="ghost"
                 className="text-muted-foreground hover:text-foreground"
               >

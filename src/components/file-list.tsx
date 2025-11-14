@@ -4,9 +4,20 @@ import { Trash2, FileText, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { fileService } from "@/services/file.service"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface File {
-  documentId: string
+  id: string
   filename: string
   pages: number
   chunks: number
@@ -29,6 +40,8 @@ const getFileIcon = (filename: string) => {
 
 export default function FileList({ files: propFiles, onDeleteFile }: FileListProps) {
   const queryClient = useQueryClient()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null)
 
   // Fetch files from API if not provided
   const { data: apiFiles, isLoading } = useQuery({
@@ -41,14 +54,23 @@ export default function FileList({ files: propFiles, onDeleteFile }: FileListPro
     mutationFn: (fileId: string) => fileService.deleteFile(fileId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["files"] })
+      setDeleteDialogOpen(false)
+      setFileToDelete(null)
     },
   })
 
-  const handleDelete = (fileId: string) => {
-    if (onDeleteFile) {
-      onDeleteFile(fileId)
+  const handleDeleteClick = (fileId: string, filename: string) => {
+    setFileToDelete({ id: fileId, name: filename })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (fileToDelete) {
+      if (onDeleteFile) {
+        onDeleteFile(fileToDelete.id)
+      }
+      deleteMutation.mutate(fileToDelete.id)
     }
-    deleteMutation.mutate(fileId)
   }
 
   const files = propFiles || apiFiles || []
@@ -75,7 +97,7 @@ export default function FileList({ files: propFiles, onDeleteFile }: FileListPro
     <div className="space-y-2">
       {files.map((file) => (
         <div
-          key={file.documentId}
+          key={file.id}
           className="flex items-center justify-between p-3 bg-background/50 border border-border/50 rounded-lg hover:bg-background/80 transition-colors"
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -96,13 +118,13 @@ export default function FileList({ files: propFiles, onDeleteFile }: FileListPro
 
           <div className="flex items-center gap-2 ml-4">
             <Button
-              onClick={() => handleDelete(file.documentId)}
-              disabled={deleteMutation.isPending}
+              onClick={() => handleDeleteClick(file.id, file.filename)}
+              disabled={deleteMutation.isPending && fileToDelete?.id === file.id}
               variant="ghost"
               size="sm"
               className="text-destructive hover:bg-destructive/10"
             >
-              {deleteMutation.isPending ? (
+              {deleteMutation.isPending && fileToDelete?.id === file.id ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Trash2 className="w-4 h-4" />
@@ -111,6 +133,26 @@ export default function FileList({ files: propFiles, onDeleteFile }: FileListPro
           </div>
         </div>
       ))}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <span className="font-semibold">{fileToDelete?.name}</span> from the knowledge base. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
