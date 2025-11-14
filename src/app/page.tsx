@@ -95,6 +95,7 @@ export default function Home() {
             >
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
+            <span className="text-center text-xs text-muted-foreground">Test credentials email: sajjad08@gmail.com password: abc123</span>
           </form>
 
           <div className="mt-6 pt-6 border-t border-border/50">
