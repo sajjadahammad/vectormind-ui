@@ -16,7 +16,12 @@ interface Message {
   content: string
 }
 
-export default function ChatInterface() {
+interface ChatInterfaceProps {
+  onSidebarToggle?: (open: boolean) => void
+  sidebarOpen?: boolean
+}
+
+export default function ChatInterface({ onSidebarToggle, sidebarOpen: externalSidebarOpen }: ChatInterfaceProps = {}) {
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
   
   const [messages, setMessages] = useState<Message[]>([])
@@ -27,7 +32,16 @@ export default function ChatInterface() {
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null)
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([])
   const [isLoadingHistories, setIsLoadingHistories] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [internalSidebarOpen, setInternalSidebarOpen] = useState(true)
+  const sidebarOpen = externalSidebarOpen !== undefined ? externalSidebarOpen : internalSidebarOpen
+  
+  const handleSidebarToggle = (open: boolean) => {
+    if (externalSidebarOpen !== undefined && onSidebarToggle) {
+      onSidebarToggle(open)
+    } else {
+      setInternalSidebarOpen(open)
+    }
+  }
   const [isMobile, setIsMobile] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -305,11 +319,11 @@ export default function ChatInterface() {
   const hasActualMessages = messages.length > 0 || (isLoading || streamingContent)
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* Chat History Sidebar */}
       {sidebarOpen && (
         <div className={`${sidebarOpen ? "block" : "hidden"} fixed md:relative inset-y-0 left-0 z-30 md:z-auto`}>
-          <div className="md:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-20" onClick={() => setSidebarOpen(false)} />
+          <div className="md:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-20" onClick={() => handleSidebarToggle(false)} />
           <div className="relative z-30 h-full">
             <ChatHistorySidebar
               histories={chatHistories}
@@ -318,14 +332,14 @@ export default function ChatInterface() {
                 handleSelectHistory(id)
                 // Only close sidebar on mobile after selection
                 if (isMobile) {
-                  setSidebarOpen(false)
+                  handleSidebarToggle(false)
                 }
               }}
               onNewChat={() => {
                 handleNewChat()
                 // Only close sidebar on mobile
                 if (isMobile) {
-                  setSidebarOpen(false)
+                  handleSidebarToggle(false)
                 }
               }}
               onHistoryUpdated={fetchChatHistories}
@@ -336,22 +350,11 @@ export default function ChatInterface() {
       )}
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Sidebar toggle button - visible on all screen sizes */}
-        <div className="absolute top-4 left-4 z-20">
-          <Button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            variant="ghost"
-            size="sm"
-            className="bg-background/80 backdrop-blur-sm border border-border"
-          >
-            {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </Button>
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
         {/* Messages area */}
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-2 md:p-4 pt-14 md:pt-14"
+          className="flex-1 overflow-y-auto p-2 md:p-4 space-y-4 min-h-0"
         >
           {!hasActualMessages ? (
             <div className="h-full flex items-center justify-center">
@@ -365,8 +368,8 @@ export default function ChatInterface() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col justify-end min-h-full space-y-4">
-            {displayMessages.map((message) => (
+            <>
+            {displayMessages.map((message: Message) => (
               <div
                 key={message.id}
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
@@ -378,7 +381,7 @@ export default function ChatInterface() {
                       : "bg-card border border-border text-foreground"
                   } rounded-lg overflow-hidden`}
                 >
-                  <div className="px-3 py-2 sm:px-4 sm:py-3 break-words">
+                  <div className="px-3 py-2 sm:px-4 sm:py-3 wrap-break-word">
                     {message.role === "assistant" && message.id === "streaming" && showThinkingIndicator ? (
                       <div className="flex items-center gap-1 py-1">
                         <span className="text-sm text-muted-foreground">Thinking</span>
@@ -427,13 +430,13 @@ export default function ChatInterface() {
                 </div>
               </div>
             ))}
-            </div>
+            </>
           )}
           <div ref={scrollRef} />
         </div>
 
         {/* Input area */}
-        <div className="border-t border-border/50 bg-background/50 backdrop-blur-sm p-2 sm:p-4">
+        <div className="border-t border-border/50 bg-background/50 backdrop-blur-sm p-2 sm:p-4 flex-shrink-0">
           <div className="max-w-4xl mx-auto">
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input

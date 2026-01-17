@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import ChatInterface from "@/components/chat-interface"
-import { LogOut, Settings, User } from "lucide-react"
+import { LogOut, Settings, User, Menu, X } from "lucide-react"
 import { authService } from "@/services/auth.service"
 
 export default function ChatPage() {
   const router = useRouter()
   const [user, setUser] = useState<{ email: string; role: string } | null>(null)
   const [showProfile, setShowProfile] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -34,7 +35,15 @@ export default function ChatPage() {
       {/* Header */}
       <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-full mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              variant="ghost"
+              size="sm"
+              className="text-foreground hover:text-white"
+            >
+              {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </Button>
             <Link href="/chat" className="text-2xl font-bold">
               <span className="text-foreground">Vector</span>
               <span className="text-primary">Mind</span>
@@ -84,7 +93,10 @@ export default function ChatPage() {
 
       {/* Chat area */}
       <div className="flex-1 overflow-hidden">
-        <ChatInterface />
+        <ChatInterface 
+          sidebarOpen={sidebarOpen}
+          onSidebarToggle={setSidebarOpen}
+        />
       </div>
     </div>
   )
