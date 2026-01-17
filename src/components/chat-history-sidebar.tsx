@@ -5,6 +5,16 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Trash2,
   Edit2,
   Check,
@@ -37,6 +47,8 @@ export default function ChatHistorySidebar({
   const [editName, setEditName] = useState("")
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [historyToDelete, setHistoryToDelete] = useState<ChatHistory | null>(null)
 
   const handleStartEdit = (history: ChatHistory) => {
     setEditingId(history.id)
@@ -62,12 +74,18 @@ export default function ChatHistorySidebar({
     }
   }
 
-  const handleDelete = async (historyId: string) => {
-    if (!confirm("Are you sure you want to delete this chat history?")) {
-      return
-    }
+  const handleDeleteClick = (history: ChatHistory) => {
+    setHistoryToDelete(history)
+    setDeleteDialogOpen(true)
+  }
 
+  const handleConfirmDelete = async () => {
+    if (!historyToDelete) return
+
+    const historyId = historyToDelete.id
     setDeletingId(historyId)
+    setDeleteDialogOpen(false)
+    
     try {
       await chatHistoryService.delete(historyId)
       onHistoryUpdated()
@@ -80,6 +98,7 @@ export default function ChatHistorySidebar({
       alert("Failed to delete chat history. Please try again.")
     } finally {
       setDeletingId(null)
+      setHistoryToDelete(null)
     }
   }
 
@@ -108,7 +127,7 @@ export default function ChatHistorySidebar({
   )
 
   return (
-    <div className="w-80 border-r border-border bg-background/50 flex flex-col h-full">
+    <div className="w-80 border-r border-border bg-background/95 backdrop-blur-sm md:bg-background/50 flex flex-col h-full shadow-lg md:shadow-none">
       {/* Header */}
       <div className="p-4 border-b border-border mt-16">
         <div className="flex items-center justify-between mb-4">
@@ -225,12 +244,12 @@ export default function ChatHistorySidebar({
                             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleDelete(history.id)
+                              handleDeleteClick(history)
                             }}
-                            disabled={isDeleting}
+                            disabled={deletingId === history.id}
                             title="Delete"
                           >
-                            {isDeleting ? (
+                            {deletingId === history.id ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
                             ) : (
                               <Trash2 className="w-3 h-3" />
@@ -251,6 +270,27 @@ export default function ChatHistorySidebar({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <span className="font-semibold">{historyToDelete?.name}</span> from your chat history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

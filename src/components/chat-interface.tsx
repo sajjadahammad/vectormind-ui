@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Loader2, Copy, Check } from "lucide-react"
+import { Send, Loader2, Copy, Check, Menu, X } from "lucide-react"
 import ChatHistorySidebar from "@/components/chat-history-sidebar"
 import MarkdownMessage from "@/components/markdown-message"
 import type { ChatHistory, ChatMessage as ChatHistoryMessage } from "@/services/chat-history.service"
@@ -28,7 +28,18 @@ export default function ChatInterface() {
   const [chatHistories, setChatHistories] = useState<ChatHistory[]>([])
   const [isLoadingHistories, setIsLoadingHistories] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Check if mobile on mount and window resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
 
   // Fetch chat histories on mount
   useEffect(() => {
@@ -87,8 +98,22 @@ export default function ChatInterface() {
     }
   }
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+
+  // Scroll to bottom when messages change or streaming content updates
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current
+      // Use requestAnimationFrame and setTimeout to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          container.scrollTo({
+            top: container.scrollHeight,
+            behavior: "smooth"
+          })
+        }, 50)
+      })
+    }
   }, [messages, streamingContent])
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -264,7 +289,8 @@ export default function ChatInterface() {
   // Show thinking indicator when loading but no content yet
   const showThinkingIndicator = isLoading && !streamingContent
   
-  const displayMessages = showThinkingIndicator || streamingContent
+  // Always include streaming message if loading or has content
+  const displayMessages = isLoading || streamingContent
     ? [
         ...messages,
         {
@@ -274,28 +300,60 @@ export default function ChatInterface() {
         },
       ]
     : messages
+  
+  // Check if we have actual messages (not just empty welcome state)
+  const hasActualMessages = messages.length > 0 || (isLoading || streamingContent)
 
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Chat History Sidebar */}
       {sidebarOpen && (
-        <div className="hidden md:block">
-          <ChatHistorySidebar
-            histories={chatHistories}
-            currentHistoryId={currentHistoryId}
-            onSelectHistory={handleSelectHistory}
-            onNewChat={handleNewChat}
-            onHistoryUpdated={fetchChatHistories}
-            isLoading={isLoadingHistories}
-          />
+        <div className={`${sidebarOpen ? "block" : "hidden"} fixed md:relative inset-y-0 left-0 z-30 md:z-auto`}>
+          <div className="md:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-20" onClick={() => setSidebarOpen(false)} />
+          <div className="relative z-30 h-full">
+            <ChatHistorySidebar
+              histories={chatHistories}
+              currentHistoryId={currentHistoryId}
+              onSelectHistory={(id) => {
+                handleSelectHistory(id)
+                // Only close sidebar on mobile after selection
+                if (isMobile) {
+                  setSidebarOpen(false)
+                }
+              }}
+              onNewChat={() => {
+                handleNewChat()
+                // Only close sidebar on mobile
+                if (isMobile) {
+                  setSidebarOpen(false)
+                }
+              }}
+              onHistoryUpdated={fetchChatHistories}
+              isLoading={isLoadingHistories}
+            />
+          </div>
         </div>
       )}
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Sidebar toggle button - visible on all screen sizes */}
+        <div className="absolute top-4 left-4 z-20">
+          <Button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            variant="ghost"
+            size="sm"
+            className="bg-background/80 backdrop-blur-sm border border-border"
+          >
+            {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </Button>
+        </div>
         {/* Messages area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {displayMessages.length === 0 ? (
+        <div 
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto p-2 md:p-4 pt-14 md:pt-14"
+        >
+          {!hasActualMessages ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
                 <div className="text-3xl font-bold text-muted-foreground mb-2">
@@ -307,19 +365,20 @@ export default function ChatInterface() {
               </div>
             </div>
           ) : (
-            displayMessages.map((message) => (
+            <div className="flex flex-col justify-end min-h-full space-y-4">
+            {displayMessages.map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-2xl ${
+                  className={`inline-flex flex-col max-w-[85%] sm:max-w-2xl ${
                     message.role === "user"
                       ? "bg-primary text-primary-foreground"
                       : "bg-card border border-border text-foreground"
                   } rounded-lg overflow-hidden`}
                 >
-                  <div className="px-4 py-3">
+                  <div className="px-3 py-2 sm:px-4 sm:py-3 break-words">
                     {message.role === "assistant" && message.id === "streaming" && showThinkingIndicator ? (
                       <div className="flex items-center gap-1 py-1">
                         <span className="text-sm text-muted-foreground">Thinking</span>
@@ -367,13 +426,14 @@ export default function ChatInterface() {
                   )}
                 </div>
               </div>
-            ))
+            ))}
+            </div>
           )}
           <div ref={scrollRef} />
         </div>
 
         {/* Input area */}
-        <div className="border-t border-border/50 bg-background/50 backdrop-blur-sm p-4">
+        <div className="border-t border-border/50 bg-background/50 backdrop-blur-sm p-2 sm:p-4">
           <div className="max-w-4xl mx-auto">
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input

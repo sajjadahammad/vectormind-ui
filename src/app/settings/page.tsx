@@ -39,17 +39,17 @@ export default function SettingsPage() {
     <div className="grid-pattern relative min-h-screen bg-background">
       {/* Header */}
       <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
             <Link href="/chat">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground flex-shrink-0">
+                <ArrowLeft className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Back</span>
               </Button>
             </Link>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Admin Settings</h1>
-              <p className="text-sm text-muted-foreground">Manage knowledge base and user access</p>
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">Admin Settings</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Manage knowledge base and user access</p>
             </div>
           </div>
 
@@ -86,21 +86,21 @@ export default function SettingsPage() {
       </div>
 
       {/* Main content */}
-      <div className="max-w-7xl mx-auto p-4">
-        <div className="grid md:grid-cols-3 gap-6 mt-8">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4">
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6 mt-4 sm:mt-8">
           {/* Upload section */}
           <div className="md:col-span-1">
-            <Card className="bg-card/50 border border-border/50 p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Upload Files</h2>
+            <Card className="bg-card/50 border border-border/50 p-4 sm:p-6">
+              <h2 className="text-base sm:text-lg font-semibold text-foreground mb-3 sm:mb-4">Upload Files</h2>
               <FileUploadArea />
             </Card>
           </div>
 
           {/* Files list */}
           <div className="md:col-span-2">
-            <Card className="bg-card/50 border border-border/50 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-foreground">Knowledge Base Files</h2>
+            <Card className="bg-card/50 border border-border/50 p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground">Knowledge Base Files</h2>
               </div>
               <FileList />
             </Card>

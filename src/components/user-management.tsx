@@ -127,16 +127,16 @@ export default function UserManagement() {
   }
 
   return (
-    <Card className="bg-card/50 border border-border/50 p-6 mt-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" />
-            User Access Management
+    <Card className="bg-card/50 border border-border/50 p-4 sm:p-6 mt-4 sm:mt-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
+            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+            <span className="truncate">User Access Management</span>
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Control who can edit the knowledge base</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Control who can edit the knowledge base</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <span className="text-sm font-medium text-muted-foreground bg-muted/30 px-3 py-1 rounded-full">
             {users.length} users
           </span>
@@ -242,19 +242,19 @@ export default function UserManagement() {
           {users.map((user) => (
             <div
               key={user.uid}
-              className="flex items-center justify-between p-4 bg-background/50 border border-border/30 rounded-lg hover:border-border/50 transition-colors"
+              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 sm:p-4 bg-background/50 border border-border/30 rounded-lg hover:border-border/50 transition-colors"
             >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-foreground">{user.email}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{user.email}</p>
                   {user.displayName && (
-                    <span className="text-xs text-muted-foreground">({user.displayName})</span>
+                    <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">({user.displayName})</span>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">{getRoleDescription(user)}</p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <span className={`text-xs font-semibold px-2 py-1 rounded border ${getRoleBadgeColor(user.role)}`}>
                   {user.role.toUpperCase()}
                 </span>
