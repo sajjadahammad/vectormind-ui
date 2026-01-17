@@ -37,8 +37,14 @@ export const chatHistoryService = {
    * Get all chat histories for the current user
    */
   async getAll(): Promise<ChatHistoriesResponse> {
-    const response = await apiClient.get<ChatHistoriesResponse>("/chat/history")
-    return response.data
+    try {
+      const response = await apiClient.get<ChatHistoriesResponse>("/chat/history")
+      console.log("Chat history API response:", response.data)
+      return response.data
+    } catch (error: any) {
+      console.error("Chat history API error:", error.response?.data || error.message)
+      throw error
+    }
   },
 
   /**

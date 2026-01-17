@@ -38,9 +38,20 @@ export default function ChatInterface() {
     setIsLoadingHistories(true)
     try {
       const data = await chatHistoryService.getAll()
-      setChatHistories(data.histories)
+      console.log("Chat histories fetched:", data)
+      // Handle both array and object response formats
+      if (Array.isArray(data)) {
+        setChatHistories(data)
+      } else if (data?.histories) {
+        setChatHistories(data.histories)
+      } else {
+        console.warn("Unexpected response format:", data)
+        setChatHistories([])
+      }
     } catch (error) {
       console.error("Failed to fetch chat histories:", error)
+      // Set empty array on error to show empty state
+      setChatHistories([])
     } finally {
       setIsLoadingHistories(false)
     }
