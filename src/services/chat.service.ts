@@ -3,6 +3,7 @@ import apiClient from "@/lib/api-client"
 interface ChatMessage {
   message: string
   conversationId?: string
+  historyId?: string
 }
 
 interface ChatSource {
@@ -16,6 +17,7 @@ interface ChatResponse {
   response: string
   sources: ChatSource[]
   conversationId: string
+  historyId?: string
 }
 
 interface StreamCallbacks {
