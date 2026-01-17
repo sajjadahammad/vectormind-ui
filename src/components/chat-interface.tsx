@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Loader2, Copy, Check } from "lucide-react"
 import ChatHistorySidebar from "@/components/chat-history-sidebar"
+import MarkdownMessage from "@/components/markdown-message"
 import type { ChatHistory, ChatMessage as ChatHistoryMessage } from "@/services/chat-history.service"
 import { chatHistoryService } from "@/services/chat-history.service"
 
@@ -315,12 +316,16 @@ export default function ChatInterface() {
                           <span className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce"></span>
                         </div>
                       </div>
+                    ) : message.role === "assistant" ? (
+                      <div className="text-sm">
+                        <MarkdownMessage content={message.content} />
+                        {message.id === "streaming" && !showThinkingIndicator && (
+                          <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
+                        )}
+                      </div>
                     ) : (
                       <p className="text-sm whitespace-pre-wrap">
                         {message.content}
-                        {message.role === "assistant" && message.id === "streaming" && !showThinkingIndicator && (
-                          <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
-                        )}
                       </p>
                     )}
                   </div>
