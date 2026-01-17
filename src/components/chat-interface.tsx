@@ -163,11 +163,21 @@ export default function ChatInterface() {
                 if (parsed.chunk) {
                   assistantContent += parsed.chunk
                   setStreamingContent(assistantContent)
+                  // Check for historyId in chunk responses
+                  if (parsed.historyId && !currentHistoryId) {
+                    newHistoryId = parsed.historyId
+                    setCurrentHistoryId(parsed.historyId)
+                  }
                 }
                 // Handle content format: {type: "content", content: "..."}
                 else if (parsed.type === "content" && parsed.content) {
                   assistantContent += parsed.content
                   setStreamingContent(assistantContent)
+                  // Check for historyId in content responses
+                  if (parsed.historyId && !currentHistoryId) {
+                    newHistoryId = parsed.historyId
+                    setCurrentHistoryId(parsed.historyId)
+                  }
                 }
                 // Handle message format: {type: "message", content: {parts: [...]}}
                 else if (parsed.type === "message" && parsed.content) {
@@ -198,9 +208,11 @@ export default function ChatInterface() {
                 }
                 // Handle done flag - save historyId if present
                 else if (parsed.type === "done" || parsed.done) {
-                  if (parsed.historyId && !currentHistoryId) {
+                  if (parsed.historyId) {
                     newHistoryId = parsed.historyId
-                    setCurrentHistoryId(parsed.historyId)
+                    if (!currentHistoryId) {
+                      setCurrentHistoryId(parsed.historyId)
+                    }
                   }
                   break
                 } else {
@@ -219,16 +231,17 @@ export default function ChatInterface() {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: assistantContent,
+        content: assistantContent || "",
       }
 
       setMessages((prev) => [...prev, assistantMessage])
       setStreamingContent("")
       
-      // Refresh chat histories if we got a new historyId
-      if (newHistoryId && newHistoryId !== currentHistoryId) {
+      // Always refresh chat histories after message completion
+      // This updates message counts and adds new histories
+      setTimeout(() => {
         fetchChatHistories()
-      }
+      }, 500)
     } catch (error) {
       console.error("Error sending message:", error)
       const errorMessage: Message = {
@@ -318,8 +331,12 @@ export default function ChatInterface() {
                       </div>
                     ) : message.role === "assistant" ? (
                       <div className="text-sm">
-                        <MarkdownMessage content={message.content} />
-                        {message.id === "streaming" && !showThinkingIndicator && (
+                        {message.content ? (
+                          <MarkdownMessage content={message.content} />
+                        ) : message.id === "streaming" ? (
+                          <span className="text-muted-foreground">...</span>
+                        ) : null}
+                        {message.id === "streaming" && !showThinkingIndicator && message.content && (
                           <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse" />
                         )}
                       </div>

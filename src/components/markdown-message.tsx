@@ -9,6 +9,11 @@ interface MarkdownMessageProps {
 }
 
 export default function MarkdownMessage({ content }: MarkdownMessageProps) {
+  // Return empty div if content is empty or undefined
+  if (!content || content.trim() === "") {
+    return null
+  }
+
   const components: Components = {
     // Headers
     h1: ({ children }) => (
